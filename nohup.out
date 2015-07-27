@@ -1,0 +1,51 @@
+Starting : Sun Jul 26 2015 09:16:28 GMT-0400 (EDT)
+	uid 919591998867
+	gid dogsgroup
+	challenge Hi
+	Receiving file : ./uploads/Deivam Enbadhenna (II) - TamilTunes.com.mp3
+	 PercentComplet : 60.01
+/home/ashok/Server/media_agent.lua 919591998867 dogsgroup "./uploads/Deivam Enbadhenna (II) - TamilTunes.com.mp3" true
+MEDIA = /home/ashok/Server/media_server.db
+ashok(dot)mp3
+echo "ashok(dot)mp3.status" | socat /home/ashok/Server/sockets/84018772 - 2>/dev/null
+Currently playing, so will enque the songs to playlist
+/home/ashok/Server/load_song.lua /home/ashok/Server/playlists/dogsgroup.pls "919591998867" "dogsgroup" "./uploads/Deivam Enbadhenna (II) - TamilTunes.com.mp3"
+java -jar /home/ashok/java/PubSubSend.jar  dogsgroup_playlst 919591998867 "Deivam Enbadhenna (II) - TamilTunes.com by S.P.B.Charan
+"
+Command = dogsgroup_playlst Deivam Enbadhenna (II) - TamilTunes.com by S.P.B.Charan
+ 919591998867
+<song xmlns="pubsub:gid:song" timestamp="20150726T13:16:38"><from>919591998867</from><title>Deivam Enbadhenna (II) - TamilTunes.com by S.P.B.Charan
+</title></song>
+
+End : Sun Jul 26 2015 09:16:43 GMT-0400 (EDT)
+-> upload done
+Starting : Sun Jul 26 2015 10:07:24 GMT-0400 (EDT)
+	uid 919886700465
+	gid dogsgroup
+	challenge Hi
+	Receiving file : ./uploads/Happy-StarMusiQ.Com.mp3
+	 PercentComplet : 60.07
+/home/ashok/Server/media_agent.lua 919886700465 dogsgroup "./uploads/Happy-StarMusiQ.Com.mp3" true
+End : Sun Jul 26 2015 10:08:02 GMT-0400 (EDT)
+-> upload done
+Starting : Sun Jul 26 2015 14:08:25 GMT-0400 (EDT)
+	uid 918861142773
+	gid dogsgroup
+	challenge Hi
+	Receiving file : ./uploads/Counting Stars.mp3
+	 PercentComplet : 60.01
+/home/ashok/Server/media_agent.lua 918861142773 dogsgroup "./uploads/Counting Stars.mp3" true
+MEDIA = /home/ashok/Server/media_server.db
+ashok(dot)mp3
+echo "ashok(dot)mp3.status" | socat /home/ashok/Server/sockets/84018772 - 2>/dev/null
+Currently playing, so will enque the songs to playlist
+/home/ashok/Server/load_song.lua /home/ashok/Server/playlists/dogsgroup.pls "918861142773" "dogsgroup" "./uploads/Counting Stars.mp3"
+java -jar /home/ashok/java/PubSubSend.jar  dogsgroup_playlst 918861142773 "Counting Stars by OneRepublic
+"
+Command = dogsgroup_playlst Counting Stars by OneRepublic
+ 918861142773
+<song xmlns="pubsub:gid:song" timestamp="20150726T18:11:23"><from>918861142773</from><title>Counting Stars by OneRepublic
+</title></song>
+
+End : Sun Jul 26 2015 14:11:37 GMT-0400 (EDT)
+-> upload done

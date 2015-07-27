@@ -1,0 +1,286 @@
+#!/usr/bin/lua
+
+
+--Usage:
+--media_agent uid gid song
+--
+require("persistence")
+mount = "'dogs(dot)mp3'"
+playlist = "/home/ashok/playall_list.pls"
+live = "/home/ashok/playlist.pls"
+socket = "/home/ashok/socket2"
+S_SOCKET_PATH = "/home/ashok/sockets/"
+PLAYLISTS_PATH = "/home/ashok/playlists/"
+MEDIA_SERVER_DB= "/home/ashok/media_server.db"
+MEDIA_INSTANCES_DB= "/home/ashok/media_instances.db"
+LS_APP = "/home/ashok/double.ls"
+LOAD_SONG_APP = "/home/ashok/load_song.lua"
+XMPP_MSG_APP = "/home/ashok/send_xmpp.js"
+TAG_EXTRACT_APP = "eyeD3"
+
+media_server_db = { { uid="btestuid", gid="testgid", s_socket="testsocket", mount="dogs.mp3", status=0} }
+media_server_db_init = { { uid="btestuid", gid="testgid", s_socket="testsocket", mount="dogs.mp3", status=0} }
+
+media_instances = { 	{ s_socket=nil, mount="ashok.mp3", status=0 },
+			{ s_socket=nil, mount="dogs.mp3", status=0 }
+	          }
+
+media_instances_db = { 	{ s_socket=nil, mount="ashok.mp3", status=0 },
+			{ s_socket=nil, mount="dogs.mp3", status=0 }
+	          }
+--Utility to split strings into lines
+function lines(str)
+	t = {}
+	local function helper(line) 
+		table.insert(t, line) 
+		return "" 
+	end
+	helper((str:gsub("(.-)\r?\n", helper)))
+	return t
+end
+
+--Execute Liquid Soap commands using socat
+--unix socket command interface
+function exec_ls_cmd (cmd, socket)
+	local data = "echo \"" .. cmd .. "\" | socat " .. socket .. " - 2>/dev/null"
+	print(data)
+	local exec = io.popen(data)
+	ret = exec:read("*a")
+	ret = ret:gsub("^%s*(.-)%s*$", "%1")
+	if ( string.len(ret) == 0 ) then
+		exec:close()
+		return nil
+	end
+	rt = lines(ret)
+	exec:close()
+	return rt
+end
+
+function read_from_cmd_out(cmd)
+	exec = io.popen(cmd)
+	retu =  exec:read("*a")
+	exec:close()
+	return retu
+end
+
+function get_xmpp_muc_id(gid)
+	return "dogs@conference.example.com"
+end
+
+function checkplaying (mount,socket)
+	lsmount = mount:gsub("%.","(dot)")
+	print(lsmount)
+	status = exec_ls_cmd (lsmount .. ".status", S_SOCKET_PATH .. socket)
+	if status ~= nil then
+		return status[1]
+	end
+	return nil
+end
+
+function reload_playlists(playlist,ptype,socket)
+	if ( ptype == "live" ) then
+		pl_cmd = playlist .. "(dot)pls"
+	else
+		pl_cmd = playlist .. "_all(dot)pls"
+	end
+	print(pl_cmd)
+	status = exec_ls_cmd (pl_cmd .. ".reload", S_SOCKET_PATH .. socket)
+end
+
+
+function enque(song)
+end
+
+function play(song)
+end
+
+function create_icecast_mount()
+end
+
+function get_free_media_instance()
+	if ( media_instances == nil ) then
+		media_instances = media_instances_db
+	end
+	for i, tab in ipairs(media_instances) do
+		if ( tab["s_socket"] == nil ) then
+			--New socket not used yet
+			socket = math.random(100000000)
+			tab["s_socket"]=socket
+			tab["status"]=0
+			persistence.store(MEDIA_INSTANCES_DB,media_instances)
+			return tab["mount"],tab["s_socket"]
+		elseif tab["status"] == 0 then
+			socket = math.random(100000000)
+			tab["status"]=0
+			persistence.store(MEDIA_INSTANCES_DB,media_instances)
+			return tab["mount"],tab["s_socket"]
+		end
+	end
+end
+
+--This function should never return nil
+function create_playlists(gid)
+	os.execute("touch " .. PLAYLISTS_PATH .. "/" .. gid .. ".pls")
+	os.execute("touch " .. PLAYLISTS_PATH .. "/" .. gid .. "_all.pls")
+end
+
+--This function should never return nil
+function create_media_mount(uid,gid)
+	mount,socket = get_free_media_instance()
+	print("Free mount,socket : " .. mount .. "," .. socket)
+	media_server_db_init[gid] = { uid=uid, gid=gid, s_socket=socket, mount=mount, status=1}
+	media_server_db = media_server_db_init
+	persistence.store(MEDIA_SERVER_DB,media_server_db)
+	return mount,socket
+end
+
+
+function exec_ls_instance(gid, socket, mount)
+	print("Executing liquid soap : ")
+	print(LS_APP .. " -- " .. mount .. " " .. socket .. " " .. gid .. " " .. get_xmpp_muc_id(gid))
+	os.execute(LS_APP .. " -- " .. mount .. " " .. socket .. " " .. gid .. " " .. get_xmpp_muc_id(gid))
+end
+
+--Seach the media_server_db for the given GID
+function get_media_socket(gid)
+	if media_server_db == nill then
+		return nil, nil
+	end
+	if ( media_server_db[gid] == nil ) then
+		return nil,nil
+	end
+	if ( media_server_db[gid].gid == gid ) then
+		return media_server_db[gid].s_socket,media_server_db[gid].mount
+	end
+	print("Not found gid : " .. gid)
+	return nil, nil
+end
+
+-- Returns string with any leading directory components removed. If specified, also remove a trailing suffix. 
+-- Copied and adapted from http://dev.alpinelinux.org/alpine/acf/core/acf-core-0.4.20.tar.bz2/acf-core-0.4.20/lib/fs.lua
+basename = function (string_, suffix)
+	LUA_DIRSEP = "/"
+	string_ = string_ or ""
+	local basename = string.gsub (string_, "[^".. LUA_DIRSEP .."]*".. LUA_DIRSEP .."", "")
+	if suffix then
+		basename = string.gsub (basename, suffix, "")
+	end
+	return basename
+end
+
+function extract_metadata(uid,song)
+	cmd = TAG_EXTRACT_APP .. " \"" .. song .. "\" | grep title | sed \"s/\t//\""
+	a = read_from_cmd_out(cmd)
+	a = tostring(a)
+	x,y=string.find(a,"artist")
+	if x ~= nil then
+		title=string.sub(a,16,x)
+		title=string.gsub(title,"[\t].+","")
+		artist=string.sub(a,y+7)
+	end
+
+	if title == nil then
+		title = basename(song)
+	end
+	if artist == nil then
+		artist = uid:gsub("%a", string.upper, 1)
+	end
+	return title .. " by " .. artist
+end
+
+function send_playlist_xmpp_msg(uid,gid,song)
+	song_metada = extract_metadata(uid, song)
+	print(XMPP_MSG_APP .. " " .. get_xmpp_muc_id(gid) .. " \"@CTRL@2" .. uid .. ":" .. song_metada .. "\"")
+	os.execute(XMPP_MSG_APP .. " " .. get_xmpp_muc_id(gid) .. " \"@CTRL@2" .. uid .. ":" .. song_metada .. "\"")
+end
+
+function update_live_playlist(uid, gid, song)
+	print(LOAD_SONG_APP .. " " .. PLAYLISTS_PATH .. gid .. ".pls \"" .. uid .. "\" \"" .. gid .. "\" \"" .. song .. "\"")
+	os.execute(LOAD_SONG_APP .. " " .. PLAYLISTS_PATH .. gid .. ".pls \"" .. uid .. "\" \"" .. gid .. "\" \"" .. song .. "\"")
+	send_playlist_xmpp_msg(uid,gid,song)
+end
+function empty_live_playlist(gid, song)
+	file = io.open(PLAYLISTS_PATH .. "/" .. gid .. ".pls", "w+")
+	file:write(" ")
+	file:close()
+end
+function update_all_playlist(gid, song)
+	file = io.open(PLAYLISTS_PATH .. "/" .. gid .. "_all.pls", "w+")
+	file:write("\n" .. song)
+	file:close()
+end
+
+function add_all_playlist(gid, song)
+	file = io.open(PLAYLISTS_PATH .. "/" .. gid .. "_all.pls", "a+")
+	file:write("\n" .. song)
+	file:close()
+end
+
+
+
+function start_media_player(uid, gid, song)
+	socket, mount = get_media_socket(gid)
+	if  socket == nil then
+		print("Creating socket for gid: " .. gid)
+		mount,socket = create_media_mount(uid,gid)
+		create_playlists ( gid )
+		update_live_playlist(uid, gid, song)
+		--update_all_playlist(gid, song)
+		print(mount,socket)
+	else
+		update_live_playlist(uid, gid, song)
+	end
+	--reload_playlists(gid, "live", socket)
+	exec_ls_instance(gid, socket, mount)
+end
+
+function update_media_server_db(gid)
+	if ( media_server_db[gid] == nil ) then
+		return
+	end
+	media_server_db[gid].status = 0
+	media_server_db[gid].s_socket = nil
+end
+
+function main()
+	media_server_db = persistence.load(MEDIA_SERVER_DB);
+	media_instances = persistence.load(MEDIA_INSTANCES_DB);
+
+	song = arg[3]
+	gid = arg[2]
+	uid = arg[1]
+	if ( song == nil ) then
+		print("usage : ./media_agent uid gid song_name auto_start=true/false")
+		return
+	end
+	socket,mount = get_media_socket(gid)
+	if mount == nil or socket == nil then
+		status = nil
+	else
+		status = checkplaying(mount,socket)
+	end
+	if ( status == nil ) then
+		print("Media Player not running")
+		update_media_server_db(gid)
+		if ( arg[4] == "true" ) then
+			start_media_player(arg[1], arg[2], arg[3])
+		end
+		return -5
+	end
+	if ( status == "on"  ) then
+		print("Currently playing, so will enque the songs to playlist")
+		update_live_playlist(uid, gid, song)
+		--empty_live_playlist(gid)
+		--add_all_playlist(gid,song)
+		--reload_playlists(gid, "all", socket)
+		--reload_playlists(gid, "live", socket)
+	elseif status ~= "idle" then --TODO : Revisit for proper idle status
+		print(status)
+		print("Starting the broadcast")
+		if ( arg[4] == "true" ) then
+			start_media_player(arg[1], arg[2], arg[3])
+		end
+	end
+end
+
+main()

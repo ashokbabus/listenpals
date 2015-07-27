@@ -1,0 +1,21 @@
+-- Persistent Data
+local multiRefObjects = {
+
+} -- multiRefObjects
+local obj1 = {
+	[1] = {
+		["gid"] = "testgid";
+		["status"] = 0;
+		["uid"] = "btestuid";
+		["mount"] = "dogs.mp3";
+		["s_socket"] = "testsocket";
+	};
+	["dogsgroup"] = {
+		["gid"] = "dogsgroup";
+		["status"] = 1;
+		["uid"] = "919886700465";
+		["mount"] = "ashok.mp3";
+		["s_socket"] = 84018772;
+	};
+}
+return obj1
